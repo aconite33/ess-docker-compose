@@ -39,6 +39,7 @@ max_image_pixels: "32M"
 # Registration
 # Disabled by default - use MAS for user registration
 enable_registration: false
+default_room_version: "12"
 registration_shared_secret: "{{SYNAPSE_REGISTRATION_SHARED_SECRET}}"
 
 # Allow guest access
