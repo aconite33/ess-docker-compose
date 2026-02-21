@@ -826,20 +826,20 @@ echo ""
 
 # Start PostgreSQL first
 print_info "Starting PostgreSQL..."
-$DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} up -d postgres
+$DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} up -d postgres
 sleep 10
 
 # Wait for PostgreSQL to be ready
 print_info "Waiting for PostgreSQL to be ready..."
 for i in {1..60}; do
-    if $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} exec -T postgres pg_isready -U synapse &> /dev/null; then
+    if $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} exec -T postgres pg_isready -U synapse &> /dev/null; then
         print_status "PostgreSQL is ready"
         break
     fi
     if [ $i -eq 60 ]; then
         print_error "PostgreSQL failed to start in time"
         echo "Checking logs..."
-        $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} logs postgres | tail -20
+        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} logs postgres | tail -20
         exit 1
     fi
     sleep 2
@@ -849,7 +849,7 @@ echo ""
 # Start Redis (only if using Authelia)
 if [[ "$USE_AUTHELIA" == true ]]; then
     print_info "Starting Redis (for Authelia)..."
-    $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia up -d redis
+    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia up -d redis
     sleep 3
     echo ""
 fi
@@ -857,10 +857,10 @@ fi
 # Start remaining services
 if [[ "$USE_AUTHELIA" == true ]]; then
     print_info "Starting all services (with Authelia)..."
-    $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia up -d
+    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia up -d
 else
     print_info "Starting all services (without Authelia)..."
-    $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} up -d
+    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} up -d
 fi
 echo ""
 
@@ -896,14 +896,14 @@ if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
 
         # Restart MAS to pick up the certificate
         print_info "Restarting MAS to load CA certificate..."
-        $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} restart mas
+        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} restart mas
         sleep 5
         print_status "MAS restarted with trusted CA certificate"
     else
         print_warning "Could not find Caddy CA certificate at caddy/data/caddy/pki/authorities/local/root.crt"
         print_info "You may need to manually copy it after Caddy generates it"
         print_info "Run: cp caddy/data/caddy/pki/authorities/local/root.crt mas/certs/caddy-ca.crt"
-        print_info "Then restart MAS: $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} restart mas"
+        print_info "Then restart MAS: $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} restart mas"
     fi
     echo ""
 fi
@@ -1253,7 +1253,7 @@ echo ""
 
 # Show service status
 echo -e "${BLUE}Service Status:${NC}"
-$DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} ps
+$DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} ps
 echo ""
 
 echo -e "${GREEN}✓ Matrix stack is now running!${NC}"
@@ -1398,15 +1398,15 @@ else
 fi
 echo -e "${BLUE}Useful Commands:${NC}"
 if [[ "$USE_AUTHELIA" == true ]]; then
-    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia logs -f"
-    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia down"
-    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia restart <service>"
-    echo -e "  • View status:      $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia ps"
+    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia logs -f"
+    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia down"
+    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia restart <service>"
+    echo -e "  • View status:      $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia ps"
 else
-    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} logs -f"
-    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} down"
-    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} restart <service>"
-    echo -e "  • View status:      $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} ps"
+    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} logs -f"
+    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} down"
+    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} restart <service>"
+    echo -e "  • View status:      $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} ps"
 fi
 echo ""
 echo -e "${BLUE}Generated Files:${NC}"
