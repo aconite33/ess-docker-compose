@@ -655,7 +655,10 @@ matrix:
   secret: '${SYNAPSE_SHARED_SECRET}'
 
 passwords:
-  enabled: true  # MAS handles password authentication directly
+  enabled: true
+  schemes:
+    - version: 1
+      algorithm: argon2id
 EOF
 fi
 
