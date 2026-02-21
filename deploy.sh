@@ -680,6 +680,7 @@ branding:
 
 account:
   password_registration_enabled: true
+  password_registration_email_required: false
   password_change_allowed: true
   password_recovery_enabled: false
 
