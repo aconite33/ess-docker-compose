@@ -678,6 +678,11 @@ branding:
   policy_uri: 'https://${AUTH_DOMAIN}/privacy'
   tos_uri: 'https://${AUTH_DOMAIN}/terms'
 
+account:
+  password_registration_enabled: true
+  password_change_allowed: true
+  password_recovery_enabled: false
+
 policy:
   registration:
     enabled: true
