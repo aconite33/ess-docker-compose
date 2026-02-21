@@ -979,7 +979,7 @@ ${ELEMENT_DOMAIN} {
 # =========================
 ${ADMIN_DOMAIN} {
     handle {
-        reverse_proxy element-admin:80
+        reverse_proxy element-admin:8080
     }
 }
 EOF
