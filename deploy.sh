@@ -44,23 +44,33 @@ echo -e "     → Everything on one machine with self-signed certificates"
 echo -e "     → Uses *.localhost domains"
 echo -e "     → Caddy + Authelia + Matrix stack together"
 echo ""
-echo -e "  ${GREEN}2)${NC} Production (Distributed)"
+echo -e "  ${GREEN}2)${NC} Production (Single Server)"
+echo -e "     → Everything on one machine with real domains"
+echo -e "     → Let's Encrypt certificates (automatic HTTPS)"
+echo -e "     → Only Caddy exposed to the internet (ports 80/443)"
+echo -e "     → All other services on internal Docker network"
+echo ""
+echo -e "  ${GREEN}3)${NC} Production (Distributed)"
 echo -e "     → Services on separate machines for security"
 echo -e "     → Machine 1: Caddy (SSL termination)"
 echo -e "     → Machine 2: Authelia (SSO)"
 echo -e "     → Machine 3: Matrix stack (Synapse, Element, MAS, bridges)"
 echo -e "     → Real domains with Let's Encrypt certificates"
 echo ""
-read -p "Enter choice [1 or 2]: " DEPLOYMENT_TYPE
+read -p "Enter choice [1, 2, or 3]: " DEPLOYMENT_TYPE
 
 if [[ "$DEPLOYMENT_TYPE" == "1" ]]; then
     DEPLOYMENT_MODE="local"
     COMPOSE_FILE="compose-variants/docker-compose.local.yml"
     echo -e "${GREEN}✓${NC} Selected: Local Testing Mode"
 elif [[ "$DEPLOYMENT_TYPE" == "2" ]]; then
+    DEPLOYMENT_MODE="production-single"
+    COMPOSE_FILE="compose-variants/docker-compose.production-single.yml"
+    echo -e "${GREEN}✓${NC} Selected: Production (Single Server) Mode"
+elif [[ "$DEPLOYMENT_TYPE" == "3" ]]; then
     DEPLOYMENT_MODE="production"
     COMPOSE_FILE="docker-compose.yml"
-    echo -e "${GREEN}✓${NC} Selected: Production Mode"
+    echo -e "${GREEN}✓${NC} Selected: Production (Distributed) Mode"
 else
     echo -e "${RED}✗${NC} Invalid choice. Exiting."
     exit 1
@@ -210,7 +220,7 @@ if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
     echo ""
 
 else
-    # Production deployment
+    # Production deployment (single-server or distributed)
     echo -e "${CYAN}Production Deployment Configuration${NC}"
     echo ""
 
@@ -243,18 +253,21 @@ else
     AUTHELIA_SUBDOMAIN=${AUTHELIA_SUBDOMAIN:-authelia}
     AUTHELIA_DOMAIN="${AUTHELIA_SUBDOMAIN}.${DOMAIN_BASE}"
 
-    echo ""
-    echo -e "${CYAN}Backend Server Addresses (for Caddyfile):${NC}"
-    echo -e "  ${YELLOW}Enter IP addresses or hostnames${NC}"
-    echo ""
+    # Backend server addresses only needed for distributed deployment
+    if [[ "$DEPLOYMENT_MODE" == "production" ]]; then
+        echo ""
+        echo -e "${CYAN}Backend Server Addresses (for Caddyfile):${NC}"
+        echo -e "  ${YELLOW}Enter IP addresses or hostnames${NC}"
+        echo ""
 
-    # Matrix server address (IP or hostname)
-    read -p "Matrix server address (IP or hostname): " MATRIX_SERVER_IP
-    MATRIX_SERVER_IP=${MATRIX_SERVER_IP:-10.0.1.10}
+        # Matrix server address (IP or hostname)
+        read -p "Matrix server address (IP or hostname): " MATRIX_SERVER_IP
+        MATRIX_SERVER_IP=${MATRIX_SERVER_IP:-10.0.1.10}
 
-    # Authelia server address (IP or hostname)
-    read -p "Authelia server address (IP or hostname): " AUTHELIA_SERVER_IP
-    AUTHELIA_SERVER_IP=${AUTHELIA_SERVER_IP:-10.0.1.20}
+        # Authelia server address (IP or hostname)
+        read -p "Authelia server address (IP or hostname): " AUTHELIA_SERVER_IP
+        AUTHELIA_SERVER_IP=${AUTHELIA_SERVER_IP:-10.0.1.20}
+    fi
 
     # Email for Let's Encrypt (used in generated Caddyfile template)
     read -p "Email for Let's Encrypt [default: admin@${DOMAIN_BASE}]: " LETSENCRYPT_EMAIL
@@ -265,13 +278,21 @@ else
     echo -e "  Base Domain:       ${DOMAIN_BASE}"
     echo -e "  Matrix:            https://${MATRIX_DOMAIN}"
     echo -e "  Element:           https://${ELEMENT_DOMAIN}"
+    echo -e "  Admin:             https://${ADMIN_DOMAIN}"
     echo -e "  MAS:               https://${AUTH_DOMAIN}"
     echo -e "  Authelia:          https://${AUTHELIA_DOMAIN}"
-    echo -e "  Matrix Backend:    ${MATRIX_SERVER_IP}"
-    echo -e "  Authelia Backend:  ${AUTHELIA_SERVER_IP}"
+    if [[ "$DEPLOYMENT_MODE" == "production" ]]; then
+        echo -e "  Matrix Backend:    ${MATRIX_SERVER_IP}"
+        echo -e "  Authelia Backend:  ${AUTHELIA_SERVER_IP}"
+    fi
     echo ""
-    print_info "Note: Generated Caddyfile will use these backend addresses"
-    print_info "      Copy generated configs from authelia/config/ to your Authelia server"
+    if [[ "$DEPLOYMENT_MODE" == "production" ]]; then
+        print_info "Note: Generated Caddyfile will use these backend addresses"
+        print_info "      Copy generated configs from authelia/config/ to your Authelia server"
+    else
+        print_info "Note: All services run on this machine via Docker networking"
+        print_info "      Caddy will obtain Let's Encrypt certificates automatically"
+    fi
     echo ""
 fi
 
@@ -356,6 +377,12 @@ if [[ "$DEPLOYMENT_MODE" == "production" ]]; then
 # These are used in the generated caddy/Caddyfile.production template
 MATRIX_SERVER_IP=${MATRIX_SERVER_IP}
 AUTHELIA_SERVER_IP=${AUTHELIA_SERVER_IP}
+LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+EOF
+elif [[ "$DEPLOYMENT_MODE" == "production-single" ]]; then
+    cat >> .env << EOF
+
+# Production Single-Server Configuration
 LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
 EOF
 fi
@@ -582,7 +609,7 @@ if [[ "$USE_AUTHELIA" == true ]]; then
     if [[ "$DEPLOYMENT_MODE" == "production" ]]; then
         AUTHELIA_DISCOVERY_URL="https://${AUTHELIA_DOMAIN}/.well-known/openid-configuration"
     else
-        # Local: Use internal HTTP to avoid self-signed cert issues between containers
+        # Local / production-single: Use internal HTTP (containers on same Docker network)
         AUTHELIA_DISCOVERY_URL="http://authelia:9091/.well-known/openid-configuration"
     fi
 
@@ -882,6 +909,167 @@ if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
 fi
 
 # ============================================================================
+# PRODUCTION-SINGLE: Generate Caddyfile with Docker service names
+# ============================================================================
+if [[ "$DEPLOYMENT_MODE" == "production-single" ]]; then
+    echo ""
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${MAGENTA}Generating Caddyfile for Single-Server Production...${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    print_info "Generating Caddyfile with Let's Encrypt and Docker service names..."
+    cat > caddy/Caddyfile << 'CADDYFILE_HEADER'
+# Production Single-Server Caddyfile for Matrix Stack
+# All services accessed via internal Docker network
+# Let's Encrypt provides automatic TLS certificates
+CADDYFILE_HEADER
+
+    cat >> caddy/Caddyfile << EOF
+
+{
+    email ${LETSENCRYPT_EMAIL}
+    admin 0.0.0.0:2019
+}
+
+# =========================
+# Matrix Homeserver
+# =========================
+${MATRIX_DOMAIN} {
+    # Well-known client endpoint
+    @wk path /.well-known/matrix/client
+    handle @wk {
+        header Content-Type application/json
+        header Access-Control-Allow-Origin "*"
+        respond \`{"m.homeserver":{"base_url":"https://${MATRIX_DOMAIN}"},"m.authentication":{"issuer":"https://${AUTH_DOMAIN}/"}}\` 200
+    }
+
+    # Well-known server endpoint (federation)
+    @wk_server path /.well-known/matrix/server
+    handle @wk_server {
+        header Content-Type application/json
+        respond \`{"m.server":"${MATRIX_DOMAIN}:443"}\` 200
+    }
+
+    # Client versions with CORS
+    @versions path /_matrix/client/versions
+    handle @versions {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+        reverse_proxy synapse:8008 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+            header_down -Vary
+        }
+    }
+
+    # CORS preflight
+    @preflight {
+        method OPTIONS
+        path_regexp matrix ^/_matrix/.*\$
+    }
+    handle @preflight {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+        header Access-Control-Max-Age "86400"
+        respond 204
+    }
+
+    # MAS compat endpoints (login/logout/refresh routed to MAS)
+    @compat path /_matrix/client/v3/login* /_matrix/client/v3/logout* /_matrix/client/v3/refresh* /_matrix/client/r0/login* /_matrix/client/r0/logout* /_matrix/client/r0/refresh*
+    handle @compat {
+        header Access-Control-Allow-Origin "*"
+        reverse_proxy mas:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+            header_down -Vary
+        }
+    }
+
+    # Everything else to Synapse
+    @matrix_rest path_regexp matrix ^/_matrix/.*\$
+    handle @matrix_rest {
+        header Access-Control-Allow-Origin "*"
+        reverse_proxy synapse:8008 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+            header_down -Vary
+        }
+    }
+
+    handle {
+        reverse_proxy synapse:8008
+    }
+}
+
+# =========================
+# MAS (OIDC)
+# =========================
+${AUTH_DOMAIN} {
+    # OIDC Discovery
+    @disco path /.well-known/openid-configuration
+    handle @disco {
+        header ?Access-Control-Allow-Origin "*"
+        reverse_proxy mas:8080
+    }
+
+    # OAuth2 endpoints
+    @oauth path /oauth2/*
+    route @oauth {
+        header ?Access-Control-Allow-Origin "*"
+        reverse_proxy mas:8080
+    }
+
+    # Account portal
+    handle_path /account/* {
+        reverse_proxy mas:8080
+    }
+
+    handle {
+        reverse_proxy mas:8080
+    }
+
+    handle_errors {
+        header ?Access-Control-Allow-Origin "*"
+    }
+}
+
+# =========================
+# Authelia SSO
+# =========================
+${AUTHELIA_DOMAIN} {
+    reverse_proxy authelia:9091
+}
+
+# =========================
+# Element Web
+# =========================
+${ELEMENT_DOMAIN} {
+    handle {
+        reverse_proxy element:80
+    }
+}
+
+# =========================
+# Element Admin
+# =========================
+${ADMIN_DOMAIN} {
+    handle {
+        reverse_proxy element-admin:80
+    }
+}
+EOF
+
+    print_status "Caddyfile created: caddy/Caddyfile"
+    echo ""
+fi
+
+# ============================================================================
 # PRODUCTION: Generate Caddy and Authelia configs for separate machines
 # ============================================================================
 if [[ "$DEPLOYMENT_MODE" == "production" ]]; then
@@ -1113,8 +1301,58 @@ if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
         echo -e "  7. Start chatting!"
         echo ""
     fi
+elif [[ "$DEPLOYMENT_MODE" == "production-single" ]]; then
+    echo -e "${BLUE}Access Points (Let's Encrypt HTTPS):${NC}"
+    echo -e "  • Element Web:    https://${ELEMENT_DOMAIN}"
+    echo -e "  • Element Admin:  https://${ADMIN_DOMAIN}"
+    echo -e "  • Matrix API:     https://${MATRIX_DOMAIN}"
+    echo -e "  • MAS (Auth):     https://${AUTH_DOMAIN}"
+    if [[ "$USE_AUTHELIA" == true ]]; then
+        echo -e "  • Authelia:       https://${AUTHELIA_DOMAIN}"
+    fi
+    echo ""
+    echo -e "${CYAN}DNS Configuration:${NC}"
+    echo -e "  Point all domains to this server's public IP address:"
+    echo -e "  • ${MATRIX_DOMAIN}"
+    echo -e "  • ${ELEMENT_DOMAIN}"
+    echo -e "  • ${ADMIN_DOMAIN}"
+    echo -e "  • ${AUTH_DOMAIN}"
+    if [[ "$USE_AUTHELIA" == true ]]; then
+        echo -e "  • ${AUTHELIA_DOMAIN}"
+    fi
+    echo ""
+    echo -e "${CYAN}Firewall Configuration:${NC}"
+    echo -e "  Only these ports need to be open:"
+    echo -e "  • Port 80  (HTTP - Let's Encrypt ACME challenge)"
+    echo -e "  • Port 443 (HTTPS - all services)"
+    echo ""
+
+    if [[ "$USE_AUTHELIA" == true ]]; then
+        echo -e "${BLUE}Authelia Login Credentials:${NC}"
+        echo -e "  • Username:     admin"
+        echo -e "  • Password:     ${ADMIN_PASSWORD}"
+        echo -e "  ${RED}⚠ SAVE THIS PASSWORD - you'll need it to log in!${NC}"
+        echo ""
+        echo -e "${BLUE}Next Steps:${NC}"
+        echo -e "  1. Configure DNS records to point to this server"
+        echo -e "  2. Ensure ports 80 and 443 are open in your firewall"
+        echo -e "  3. Wait for Let's Encrypt certificates (automatic)"
+        echo -e "  4. Go to https://${ELEMENT_DOMAIN}"
+        echo -e "  5. Click 'Sign In' → redirected through MAS → Authelia for SSO"
+        echo -e "  6. Log in with the Authelia credentials above"
+        echo ""
+    else
+        echo -e "${BLUE}Next Steps:${NC}"
+        echo -e "  1. Configure DNS records to point to this server"
+        echo -e "  2. Ensure ports 80 and 443 are open in your firewall"
+        echo -e "  3. Wait for Let's Encrypt certificates (automatic)"
+        echo -e "  4. Go to https://${ELEMENT_DOMAIN}"
+        echo -e "  5. Click 'Sign In' → redirected to MAS for authentication"
+        echo -e "  6. Register a new account with your email and password"
+        echo ""
+    fi
 else
-    # Production mode
+    # Production distributed mode
     echo -e "${BLUE}Matrix Server Deployed!${NC}"
     echo ""
     echo -e "${MAGENTA}Production Deployment - Next Steps:${NC}"
@@ -1160,15 +1398,15 @@ else
 fi
 echo -e "${BLUE}Useful Commands:${NC}"
 if [[ "$USE_AUTHELIA" == true ]]; then
-    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD --profile authelia logs -f"
-    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD --profile authelia down"
-    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD --profile authelia restart <service>"
-    echo -e "  • View status:      $DOCKER_COMPOSE_CMD --profile authelia ps"
+    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia logs -f"
+    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia down"
+    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia restart <service>"
+    echo -e "  • View status:      $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} --profile authelia ps"
 else
-    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD logs -f"
-    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD down"
-    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD restart <service>"
-    echo -e "  • View status:      $DOCKER_COMPOSE_CMD ps"
+    echo -e "  • View logs:        $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} logs -f"
+    echo -e "  • Stop stack:       $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} down"
+    echo -e "  • Restart service:  $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} restart <service>"
+    echo -e "  • View status:      $DOCKER_COMPOSE_CMD -f ${COMPOSE_FILE} ps"
 fi
 echo ""
 echo -e "${BLUE}Generated Files:${NC}"
@@ -1185,25 +1423,40 @@ echo -e "  • mas/config/config.yaml            - MAS config"
 echo -e "  • synapse/data/homeserver.yaml      - Synapse config"
 echo ""
 echo -e "${YELLOW}Important Notes:${NC}"
-echo -e "  • Using example.test domains (not .localhost) to avoid public suffix list issues"
+if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
+    echo -e "  • Using example.test domains (not .localhost) to avoid public suffix list issues"
+fi
 echo -e "  • All critical bugfixes have been applied (see BUGFIXES.md for details)"
 echo -e "  • MAS configured with assets resource and internal discovery"
 if [[ "$USE_AUTHELIA" == true ]]; then
     echo -e "  • Authelia upstream provider enabled with fetch_userinfo and preferred_username claim"
-    echo -e "  • SSL certificate trust configured for local development"
+    if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
+        echo -e "  • SSL certificate trust configured for local development"
+    fi
 else
     echo -e "  • MAS handling password authentication directly (no upstream provider)"
+fi
+if [[ "$DEPLOYMENT_MODE" == "production-single" ]]; then
+    echo -e "  • All services communicate on internal Docker network"
+    echo -e "  • Only Caddy is exposed to the internet (ports 80/443)"
+    echo -e "  • Let's Encrypt provides real TLS certificates automatically"
 fi
 echo ""
 echo -e "${BLUE}Troubleshooting:${NC}"
 echo -e "  • If CSS is missing: Check that MAS has 'assets' resource in config"
 echo -e "  • If login fails with empty string error: Verify fetch_userinfo: true in MAS"
-echo -e "  • If redirect URI error: Check Authelia client redirect_uris include upstream callback"
-echo -e "  • If SSL errors: Ensure mas/certs/caddy-ca.crt exists and MAS was restarted"
+if [[ "$USE_AUTHELIA" == true ]]; then
+    echo -e "  • If redirect URI error: Check Authelia client redirect_uris include upstream callback"
+fi
+if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
+    echo -e "  • If SSL errors: Ensure mas/certs/caddy-ca.crt exists and MAS was restarted"
+fi
 echo -e "  • For detailed troubleshooting: See BUGFIXES.md"
 echo ""
-echo -e "${YELLOW}Security Note:${NC}"
-echo -e "  This is a local testing deployment with self-signed certificates."
-echo -e "  For production: Use Let's Encrypt, enable 2FA, and review all configs."
-echo -e "  See PRODUCTION.md for the distributed deployment guide."
-echo ""
+if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
+    echo -e "${YELLOW}Security Note:${NC}"
+    echo -e "  This is a local testing deployment with self-signed certificates."
+    echo -e "  For production: Use Let's Encrypt, enable 2FA, and review all configs."
+    echo -e "  See PRODUCTION.md for the distributed deployment guide."
+    echo ""
+fi
