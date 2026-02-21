@@ -953,18 +953,29 @@ ${AUTH_DOMAIN} {
         respond "" 204
     }
 
+    # All proxied requests: strip MAS's own CORS headers, let Caddy set them
+    # (MAS sends empty Access-Control-Allow-Origin which duplicates Caddy's)
+
     # OIDC Discovery
     @disco path /.well-known/openid-configuration
     handle @disco {
         header Access-Control-Allow-Origin "*"
-        reverse_proxy mas:8080
+        reverse_proxy mas:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # OAuth2 endpoints
     @oauth path /oauth2/*
     route @oauth {
         header Access-Control-Allow-Origin "*"
-        reverse_proxy mas:8080
+        reverse_proxy mas:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # Admin API (Element Admin cross-origin requests)
@@ -972,12 +983,20 @@ ${AUTH_DOMAIN} {
         header Access-Control-Allow-Origin "*"
         header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
         header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
-        reverse_proxy mas:8080
+        reverse_proxy mas:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # Account portal
     handle_path /account/* {
-        reverse_proxy mas:8080
+        reverse_proxy mas:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # GraphQL API
@@ -985,11 +1004,19 @@ ${AUTH_DOMAIN} {
         header Access-Control-Allow-Origin "*"
         header Access-Control-Allow-Methods "GET, POST, OPTIONS"
         header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
-        reverse_proxy mas:8080
+        reverse_proxy mas:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     handle {
-        reverse_proxy mas:8080
+        reverse_proxy mas:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     handle_errors {
@@ -1228,18 +1255,28 @@ ${AUTH_DOMAIN} {
         respond "" 204
     }
 
+    # All proxied requests: strip MAS's own CORS headers, let Caddy set them
+
     # OIDC Discovery
     @disco path /.well-known/openid-configuration
     handle @disco {
         header Access-Control-Allow-Origin "*"
-        reverse_proxy ${MATRIX_SERVER_IP}:8080
+        reverse_proxy ${MATRIX_SERVER_IP}:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # OAuth2 endpoints
     @oauth path /oauth2/*
     route @oauth {
         header Access-Control-Allow-Origin "*"
-        reverse_proxy ${MATRIX_SERVER_IP}:8080
+        reverse_proxy ${MATRIX_SERVER_IP}:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # Admin API (Element Admin cross-origin requests)
@@ -1247,12 +1284,20 @@ ${AUTH_DOMAIN} {
         header Access-Control-Allow-Origin "*"
         header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
         header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
-        reverse_proxy ${MATRIX_SERVER_IP}:8080
+        reverse_proxy ${MATRIX_SERVER_IP}:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # Account portal
     handle_path /account/* {
-        reverse_proxy ${MATRIX_SERVER_IP}:8080
+        reverse_proxy ${MATRIX_SERVER_IP}:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     # GraphQL API
@@ -1260,11 +1305,19 @@ ${AUTH_DOMAIN} {
         header Access-Control-Allow-Origin "*"
         header Access-Control-Allow-Methods "GET, POST, OPTIONS"
         header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
-        reverse_proxy ${MATRIX_SERVER_IP}:8080
+        reverse_proxy ${MATRIX_SERVER_IP}:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     handle {
-        reverse_proxy ${MATRIX_SERVER_IP}:8080
+        reverse_proxy ${MATRIX_SERVER_IP}:8080 {
+            header_down -Access-Control-Allow-Origin
+            header_down -Access-Control-Allow-Methods
+            header_down -Access-Control-Allow-Headers
+        }
     }
 
     handle_errors {
