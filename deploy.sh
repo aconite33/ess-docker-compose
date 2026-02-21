@@ -698,6 +698,9 @@ policy:
       - ${MAS_ADMIN_USER}
     admin_clients:
       - 0000000000000000000000ADMN
+    client_registration:
+      allow_host_mismatch: true
+      allow_missing_client_uri: true
   registration:
     enabled: true
     require_email: false
