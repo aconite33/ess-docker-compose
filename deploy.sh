@@ -942,17 +942,35 @@ ${MATRIX_DOMAIN} {
 # MAS (OIDC)
 # =========================
 ${AUTH_DOMAIN} {
+    # CORS preflight for all paths (Element Admin cross-origin requests)
+    @options method OPTIONS
+    handle @options {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+        header Access-Control-Max-Age "86400"
+        respond "" 204
+    }
+
     # OIDC Discovery
     @disco path /.well-known/openid-configuration
     handle @disco {
-        header ?Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Origin "*"
         reverse_proxy mas:8080
     }
 
     # OAuth2 endpoints
     @oauth path /oauth2/*
     route @oauth {
-        header ?Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Origin "*"
+        reverse_proxy mas:8080
+    }
+
+    # Admin API (Element Admin cross-origin requests)
+    handle /api/admin/* {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
         reverse_proxy mas:8080
     }
 
@@ -961,12 +979,20 @@ ${AUTH_DOMAIN} {
         reverse_proxy mas:8080
     }
 
+    # GraphQL API
+    handle /graphql* {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+        reverse_proxy mas:8080
+    }
+
     handle {
         reverse_proxy mas:8080
     }
 
     handle_errors {
-        header ?Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Origin "*"
     }
 }
 
@@ -1191,17 +1217,35 @@ ${MATRIX_DOMAIN} {
 # MAS (OIDC)
 # =========================
 ${AUTH_DOMAIN} {
+    # CORS preflight for all paths (Element Admin cross-origin requests)
+    @options method OPTIONS
+    handle @options {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+        header Access-Control-Max-Age "86400"
+        respond "" 204
+    }
+
     # OIDC Discovery
     @disco path /.well-known/openid-configuration
     handle @disco {
-        header ?Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Origin "*"
         reverse_proxy ${MATRIX_SERVER_IP}:8080
     }
 
     # OAuth2 endpoints
     @oauth path /oauth2/*
     route @oauth {
-        header ?Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Origin "*"
+        reverse_proxy ${MATRIX_SERVER_IP}:8080
+    }
+
+    # Admin API (Element Admin cross-origin requests)
+    handle /api/admin/* {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
         reverse_proxy ${MATRIX_SERVER_IP}:8080
     }
 
@@ -1210,12 +1254,20 @@ ${AUTH_DOMAIN} {
         reverse_proxy ${MATRIX_SERVER_IP}:8080
     }
 
+    # GraphQL API
+    handle /graphql* {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+        reverse_proxy ${MATRIX_SERVER_IP}:8080
+    }
+
     handle {
         reverse_proxy ${MATRIX_SERVER_IP}:8080
     }
 
     handle_errors {
-        header ?Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Origin "*"
     }
 }
 
