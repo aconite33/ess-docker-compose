@@ -10,8 +10,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
-      - ./postgres/data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d
+      - ../postgres/data:/var/lib/postgresql/data
+      - ../postgres/init:/docker-entrypoint-initdb.d
     networks:
       - matrix-network
     healthcheck:
@@ -29,10 +29,10 @@ services:
       SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
       SSL_CERT_FILE: /certs/caddy-ca.crt
     volumes:
-      - ./synapse/data:/data
-      - ./mas/certs:/certs:ro
-      - ./bridges:/bridges:ro
-      - ./appservices:/appservices:ro
+      - ../synapse/data:/data
+      - ../mas/certs:/certs:ro
+      - ../bridges:/bridges:ro
+      - ../appservices:/appservices:ro
     # Ports exposed only to internal network - access via Caddy
     expose:
       - "8008"
@@ -56,7 +56,7 @@ services:
     container_name: matrix-element
     restart: unless-stopped
     volumes:
-      - ./element/config/config.json:/app/config.json:ro
+      - ../element/config/config.json:/app/config.json:ro
     # Accessed via Caddy
     expose:
       - "80"
@@ -94,7 +94,7 @@ services:
       AUTHELIA_JWT_SECRET: ${AUTHELIA_JWT_SECRET}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./authelia/config:/config
+      - ../authelia/config:/config
     # Accessed via Caddy
     expose:
       - "9091"
@@ -115,9 +115,9 @@ services:
       MAS_CONFIG: /config/config.yaml
       SSL_CERT_FILE: /certs/caddy-ca.crt
     volumes:
-      - ./mas/config:/config:ro
-      - ./mas/data:/data
-      - ./mas/certs:/certs:ro
+      - ../mas/config:/config:ro
+      - ../mas/data:/data
+      - ../mas/certs:/certs:ro
     # Accessed via Caddy
     expose:
       - "8080"
@@ -147,9 +147,9 @@ services:
       - "80:80"
       - "2019:2019"  # Admin API
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy/data:/data
-      - ./caddy/config:/config
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../caddy/data:/data
+      - ../caddy/config:/config
     networks:
       - matrix-network
     depends_on:
@@ -164,7 +164,7 @@ services:
     container_name: matrix-bridge-telegram
     restart: unless-stopped
     volumes:
-      - ./bridges/telegram/config:/data
+      - ../bridges/telegram/config:/data
     networks:
       - matrix-network
     depends_on:
@@ -177,7 +177,7 @@ services:
     container_name: matrix-bridge-whatsapp
     restart: unless-stopped
     volumes:
-      - ./bridges/whatsapp/config:/data
+      - ../bridges/whatsapp/config:/data
     networks:
       - matrix-network
     depends_on:
@@ -190,7 +190,7 @@ services:
     container_name: matrix-bridge-signal
     restart: unless-stopped
     volumes:
-      - ./bridges/signal/config:/data
+      - ../bridges/signal/config:/data
     networks:
       - matrix-network
     depends_on:
