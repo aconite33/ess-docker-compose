@@ -678,7 +678,7 @@ branding:
 policy:
   registration:
     enabled: true
-    require_email: true
+    require_email: false
 
 clients:
   # Element Web client (public)
