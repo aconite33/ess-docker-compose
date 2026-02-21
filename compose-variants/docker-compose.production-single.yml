@@ -75,6 +75,8 @@ services:
     image: oci.element.io/element-admin:latest
     container_name: matrix-element-admin
     restart: unless-stopped
+    environment:
+      SERVER_NAME: ${MATRIX_DOMAIN}
     expose:
       - "80"
     networks:
