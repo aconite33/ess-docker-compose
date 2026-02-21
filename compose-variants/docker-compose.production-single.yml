@@ -22,8 +22,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
-      - ./postgres/data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d
+      - ../postgres/data:/var/lib/postgresql/data
+      - ../postgres/init:/docker-entrypoint-initdb.d
     networks:
       - matrix-network
     healthcheck:
@@ -40,9 +40,9 @@ services:
     environment:
       SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
     volumes:
-      - ./synapse/data:/data
-      - ./bridges:/bridges:ro
-      - ./appservices:/appservices:ro
+      - ../synapse/data:/data
+      - ../bridges:/bridges:ro
+      - ../appservices:/appservices:ro
     expose:
       - "8008"
     networks:
@@ -62,7 +62,7 @@ services:
     container_name: matrix-element
     restart: unless-stopped
     volumes:
-      - ./element/config/config.json:/app/config.json:ro
+      - ../element/config/config.json:/app/config.json:ro
     expose:
       - "80"
     networks:
@@ -112,7 +112,7 @@ services:
       AUTHELIA_JWT_SECRET: ${AUTHELIA_JWT_SECRET}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./authelia/config:/config
+      - ../authelia/config:/config
     expose:
       - "9091"
     networks:
@@ -131,8 +131,8 @@ services:
     environment:
       MAS_CONFIG: /config/config.yaml
     volumes:
-      - ./mas/config:/config:ro
-      - ./mas/data:/data
+      - ../mas/config:/config:ro
+      - ../mas/data:/data
     expose:
       - "8080"
       - "8081"
@@ -152,9 +152,9 @@ services:
       - "80:80"
       - "2019:2019"  # Admin API
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy/data:/data
-      - ./caddy/config:/config
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../caddy/data:/data
+      - ../caddy/config:/config
     networks:
       - matrix-network
     depends_on:
@@ -168,7 +168,7 @@ services:
     container_name: matrix-bridge-telegram
     restart: unless-stopped
     volumes:
-      - ./bridges/telegram/config:/data
+      - ../bridges/telegram/config:/data
     networks:
       - matrix-network
     depends_on:
@@ -181,7 +181,7 @@ services:
     container_name: matrix-bridge-whatsapp
     restart: unless-stopped
     volumes:
-      - ./bridges/whatsapp/config:/data
+      - ../bridges/whatsapp/config:/data
     networks:
       - matrix-network
     depends_on:
@@ -194,7 +194,7 @@ services:
     container_name: matrix-bridge-signal
     restart: unless-stopped
     volumes:
-      - ./bridges/signal/config:/data
+      - ../bridges/signal/config:/data
     networks:
       - matrix-network
     depends_on:
