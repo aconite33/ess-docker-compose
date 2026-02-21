@@ -582,6 +582,7 @@ http:
         - name: compat
         - name: graphql
           playground: true
+        - name: adminapi
         - name: assets    # Required for CSS/JS files
       binds:
         - address: '[::]:8080'
