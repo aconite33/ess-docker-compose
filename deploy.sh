@@ -690,7 +690,7 @@ clients:
       - 'io.element.app:/callback'
 
   # Element Admin (public - for admin UI)
-  - client_id: '01ADMIN000000000000000000'
+  - client_id: '01ADMIN00000000000000000000'
     client_auth_method: none
     redirect_uris:
       - 'https://${ADMIN_DOMAIN}/'
@@ -817,96 +817,6 @@ chmod 644 postgres/init/*.sql 2>/dev/null || true
 chmod 755 authelia/config mas/config element/config 2>/dev/null || true
 print_status "Permissions fixed"
 echo ""
-
-# Step 14: Start the stack
-echo -e "${BLUE}[14/14] Starting the Matrix stack...${NC}"
-print_info "Using compose file: ${COMPOSE_FILE}"
-print_info "This may take a few minutes on first run..."
-echo ""
-
-# Start PostgreSQL first
-print_info "Starting PostgreSQL..."
-$DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} up -d postgres
-sleep 10
-
-# Wait for PostgreSQL to be ready
-print_info "Waiting for PostgreSQL to be ready..."
-for i in {1..60}; do
-    if $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} exec -T postgres pg_isready -U synapse &> /dev/null; then
-        print_status "PostgreSQL is ready"
-        break
-    fi
-    if [ $i -eq 60 ]; then
-        print_error "PostgreSQL failed to start in time"
-        echo "Checking logs..."
-        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} logs postgres | tail -20
-        exit 1
-    fi
-    sleep 2
-done
-echo ""
-
-# Start Redis (only if using Authelia)
-if [[ "$USE_AUTHELIA" == true ]]; then
-    print_info "Starting Redis (for Authelia)..."
-    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia up -d redis
-    sleep 3
-    echo ""
-fi
-
-# Start remaining services
-if [[ "$USE_AUTHELIA" == true ]]; then
-    print_info "Starting all services (with Authelia)..."
-    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia up -d
-else
-    print_info "Starting all services (without Authelia)..."
-    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} up -d
-fi
-echo ""
-
-# Wait for services to be ready
-print_info "Waiting for services to be ready..."
-sleep 10
-echo ""
-
-# ============================================================================
-# LOCAL: Extract Caddy CA Certificate for MAS
-# ============================================================================
-if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
-    echo -e "${BLUE}[Post-Deployment] Extracting Caddy CA certificate for MAS...${NC}"
-
-    # Create certs and caddy data directories
-    mkdir -p mas/certs
-    mkdir -p caddy/data/caddy  # Required for Caddy to save PKI certificates
-
-    # Wait for Caddy to generate CA
-    print_info "Waiting for Caddy to generate local CA..."
-    sleep 5
-
-    # Trigger HTTPS requests to force Caddy to generate certificates
-    print_info "Triggering certificate generation..."
-    curl -k https://${AUTH_DOMAIN} > /dev/null 2>&1 || true
-    sleep 3
-
-    # Copy CA certificate from host path (Caddy saves to volume)
-    if [ -f "caddy/data/caddy/pki/authorities/local/root.crt" ]; then
-        cp caddy/data/caddy/pki/authorities/local/root.crt mas/certs/caddy-ca.crt
-        chmod 644 mas/certs/caddy-ca.crt
-        print_status "Caddy CA certificate copied to mas/certs/caddy-ca.crt"
-
-        # Restart MAS to pick up the certificate
-        print_info "Restarting MAS to load CA certificate..."
-        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} restart mas
-        sleep 5
-        print_status "MAS restarted with trusted CA certificate"
-    else
-        print_warning "Could not find Caddy CA certificate at caddy/data/caddy/pki/authorities/local/root.crt"
-        print_info "You may need to manually copy it after Caddy generates it"
-        print_info "Run: cp caddy/data/caddy/pki/authorities/local/root.crt mas/certs/caddy-ca.crt"
-        print_info "Then restart MAS: $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} restart mas"
-    fi
-    echo ""
-fi
 
 # ============================================================================
 # PRODUCTION-SINGLE: Generate Caddyfile with Docker service names
@@ -1066,6 +976,96 @@ ${ADMIN_DOMAIN} {
 EOF
 
     print_status "Caddyfile created: caddy/Caddyfile"
+    echo ""
+fi
+
+# Step 14: Start the stack
+echo -e "${BLUE}[14/14] Starting the Matrix stack...${NC}"
+print_info "Using compose file: ${COMPOSE_FILE}"
+print_info "This may take a few minutes on first run..."
+echo ""
+
+# Start PostgreSQL first
+print_info "Starting PostgreSQL..."
+$DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} up -d postgres
+sleep 10
+
+# Wait for PostgreSQL to be ready
+print_info "Waiting for PostgreSQL to be ready..."
+for i in {1..60}; do
+    if $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} exec -T postgres pg_isready -U synapse &> /dev/null; then
+        print_status "PostgreSQL is ready"
+        break
+    fi
+    if [ $i -eq 60 ]; then
+        print_error "PostgreSQL failed to start in time"
+        echo "Checking logs..."
+        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} logs postgres | tail -20
+        exit 1
+    fi
+    sleep 2
+done
+echo ""
+
+# Start Redis (only if using Authelia)
+if [[ "$USE_AUTHELIA" == true ]]; then
+    print_info "Starting Redis (for Authelia)..."
+    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia up -d redis
+    sleep 3
+    echo ""
+fi
+
+# Start remaining services
+if [[ "$USE_AUTHELIA" == true ]]; then
+    print_info "Starting all services (with Authelia)..."
+    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} --profile authelia up -d
+else
+    print_info "Starting all services (without Authelia)..."
+    $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} up -d
+fi
+echo ""
+
+# Wait for services to be ready
+print_info "Waiting for services to be ready..."
+sleep 10
+echo ""
+
+# ============================================================================
+# LOCAL: Extract Caddy CA Certificate for MAS
+# ============================================================================
+if [[ "$DEPLOYMENT_MODE" == "local" ]]; then
+    echo -e "${BLUE}[Post-Deployment] Extracting Caddy CA certificate for MAS...${NC}"
+
+    # Create certs and caddy data directories
+    mkdir -p mas/certs
+    mkdir -p caddy/data/caddy  # Required for Caddy to save PKI certificates
+
+    # Wait for Caddy to generate CA
+    print_info "Waiting for Caddy to generate local CA..."
+    sleep 5
+
+    # Trigger HTTPS requests to force Caddy to generate certificates
+    print_info "Triggering certificate generation..."
+    curl -k https://${AUTH_DOMAIN} > /dev/null 2>&1 || true
+    sleep 3
+
+    # Copy CA certificate from host path (Caddy saves to volume)
+    if [ -f "caddy/data/caddy/pki/authorities/local/root.crt" ]; then
+        cp caddy/data/caddy/pki/authorities/local/root.crt mas/certs/caddy-ca.crt
+        chmod 644 mas/certs/caddy-ca.crt
+        print_status "Caddy CA certificate copied to mas/certs/caddy-ca.crt"
+
+        # Restart MAS to pick up the certificate
+        print_info "Restarting MAS to load CA certificate..."
+        $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} restart mas
+        sleep 5
+        print_status "MAS restarted with trusted CA certificate"
+    else
+        print_warning "Could not find Caddy CA certificate at caddy/data/caddy/pki/authorities/local/root.crt"
+        print_info "You may need to manually copy it after Caddy generates it"
+        print_info "Run: cp caddy/data/caddy/pki/authorities/local/root.crt mas/certs/caddy-ca.crt"
+        print_info "Then restart MAS: $DOCKER_COMPOSE_CMD --env-file .env -f ${COMPOSE_FILE} restart mas"
+    fi
     echo ""
 fi
 
