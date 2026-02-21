@@ -273,6 +273,13 @@ else
     read -p "Email for Let's Encrypt [default: admin@${DOMAIN_BASE}]: " LETSENCRYPT_EMAIL
     LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-admin@${DOMAIN_BASE}}
 
+    # Admin username for MAS/Synapse admin access
+    echo ""
+    echo -e "${CYAN}Admin User:${NC}"
+    echo -e "  ${YELLOW}This user will have admin access to Synapse and Element Admin${NC}"
+    read -p "Admin username (Matrix localpart, e.g., admin): " MAS_ADMIN_USER
+    MAS_ADMIN_USER=${MAS_ADMIN_USER:-admin}
+
     echo ""
     echo -e "${GREEN}✓${NC} Configuration Summary:"
     echo -e "  Base Domain:       ${DOMAIN_BASE}"
@@ -685,6 +692,11 @@ account:
   password_recovery_enabled: false
 
 policy:
+  data:
+    admin_users:
+      - ${MAS_ADMIN_USER}
+    admin_clients:
+      - 0000000000000000000000ADMN
   registration:
     enabled: true
     require_email: false
