@@ -690,7 +690,7 @@ clients:
       - 'io.element.app:/callback'
 
   # Element Admin (public - for admin UI)
-  - client_id: '01ADMIN00000000000000000000'
+  - client_id: '0000000000000000000000ADMN'
     client_auth_method: none
     redirect_uris:
       - 'https://${ADMIN_DOMAIN}/'
